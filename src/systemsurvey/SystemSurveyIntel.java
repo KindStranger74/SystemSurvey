@@ -8,6 +8,7 @@ import java.util.Set;
 import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.campaign.SectorEntityToken;
 import com.fs.starfarer.api.campaign.StarSystemAPI;
+import com.fs.starfarer.api.campaign.econ.CommoditySpecAPI;
 import com.fs.starfarer.api.impl.campaign.ids.Tags;
 import com.fs.starfarer.api.impl.campaign.intel.misc.FleetLogIntel;
 import com.fs.starfarer.api.ui.SectorMapAPI;
@@ -24,10 +25,16 @@ public class SystemSurveyIntel extends FleetLogIntel {
 
 	protected StarSystemAPI system;
 	protected long xp;
+	/** System Survey Data commodity id granted with this survey; null for core worlds and for intel from older saves. */
+	protected String dataId;
+	/** What set the class: a theme title, an object name or a planet name. Null when dataId is, or unknown. */
+	protected String dataReason;
 
-	public SystemSurveyIntel(StarSystemAPI system, long xp) {
+	public SystemSurveyIntel(StarSystemAPI system, long xp, String dataId, String dataReason) {
 		this.system = system;
 		this.xp = xp;
+		this.dataId = dataId;
+		this.dataReason = dataReason;
 		setSound("ui_discovered_entity");
 		setIconId("systemsurvey_survey");
 		setListInfoParam(DISCOVERED_PARAM);
@@ -54,6 +61,9 @@ public class SystemSurveyIntel extends FleetLogIntel {
 		if (getListInfoParam() == DISCOVERED_PARAM && xp > 0) {
 			info.addPara("%s experience", 0f, tc, Misc.getHighlightColor(), Misc.getWithDGS(xp));
 		}
+		if (getListInfoParam() == DISCOVERED_PARAM && dataId != null) {
+			info.addPara("%s System Survey Data", 0f, tc, Misc.getHighlightColor(), SurveyData.classLabel(dataId));
+		}
 		unindent(info);
 	}
 
@@ -74,6 +84,19 @@ public class SystemSurveyIntel extends FleetLogIntel {
 			info.addPara(t.title, t.color, p);
 			info.addPara(t.detail, g, 0f);
 			p = pad + 4f;
+		}
+		if (dataId != null) {
+			CommoditySpecAPI spec = Global.getSettings().getCommoditySpec(dataId);
+			if (spec != null) {
+				info.addImage(spec.getIconName(), 32f, 32f, opad);
+			}
+			float dp = spec != null ? 3f : opad;
+			String label = SurveyData.classLabel(dataId);
+			if (dataReason != null) {
+				info.addPara("Survey data: %s, for %s", dp, tc, h, label, dataReason);
+			} else {
+				info.addPara("Survey data: %s", dp, tc, h, label);
+			}
 		}
 		String danger = SurveyData.getDangerHint(system);
 		if (danger != null) {
@@ -124,6 +147,14 @@ public class SystemSurveyIntel extends FleetLogIntel {
 	public boolean shouldRemoveIntel() {
 		// permanent record; the player can delete it
 		return isEnded();
+	}
+
+	public String getDataId() {
+		return dataId;
+	}
+
+	public String getDataReason() {
+		return dataReason;
 	}
 
 	public StarSystemAPI getSystem() {

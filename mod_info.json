@@ -4,7 +4,7 @@
   "author": "KindStranger74",
   "utility": "false",
   "version": "1.0.0",
-  "description": "Active Sensor Burst now scans the objects around your fleet. Scan everything in a star system to learn what kind of system it is (Remnant, derelict, ruins and more), what loot is left, and earn experience. In a fully surveyed system the Neutrino Detector shows no false readings.",
+  "description": "Active Sensor Burst now scans the objects around your fleet. Scan everything in a star system to learn what kind of system it is (Remnant, derelict, ruins and more), what loot is left, and earn experience and one unit of Class I-V System Survey Data (a tradeable commodity priced like vanilla's planetary survey data; the class is that of the best planet in the system). In a fully surveyed system the Neutrino Detector shows no false readings.",
   "gameVersion": "0.98a-RC8",
   "jars": ["jars/SystemSurvey.jar"],
   "modPlugin": "systemsurvey.SystemSurveyModPlugin",

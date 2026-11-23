@@ -8,6 +8,7 @@ import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.campaign.CampaignFleetAPI;
 import com.fs.starfarer.api.campaign.SectorEntityToken;
 import com.fs.starfarer.api.campaign.StarSystemAPI;
+import com.fs.starfarer.api.campaign.econ.CommoditySpecAPI;
 import com.fs.starfarer.api.characters.AbilityPlugin;
 import com.fs.starfarer.api.impl.campaign.ids.Abilities;
 import com.fs.starfarer.api.util.IntervalUtil;
@@ -102,9 +103,24 @@ public class SurveyTracker implements EveryFrameScript {
 		system.getMemoryWithoutUpdate().set(SurveyData.COMPLETE_FLAG, true);
 		// paid on every point in the system, also the ones the survey did not need
 		long xp = Math.round(p.total * SurveyData.getFloat("systemsurvey_xpPerPoint", 250f));
-		new SystemSurveyIntel(system, xp);
+		SurveyData.DataClass data = SurveyData.getSurveyDataInfo(system);
+		String dataId = data != null ? data.id() : null;
+		boolean grant = dataId != null && SurveyData.getBoolean("systemsurvey_grantSurveyData", true)
+				&& !system.getPersistentData().containsKey(SurveyData.DATA_GRANTED_KEY);
+		new SystemSurveyIntel(system, xp, grant ? dataId : null, grant ? data.reason : null);
 		if (xp > 0) {
 			Global.getSector().getPlayerStats().addXP(xp);
+		}
+		if (grant) {
+			// addCommodity ignores cargo capacity, like vanilla's own survey, so a full hold never loses the data
+			Global.getSector().getPlayerFleet().getCargo().addCommodity(dataId, 1);
+			system.getPersistentData().put(SurveyData.DATA_GRANTED_KEY, dataId);
+			String label = SurveyData.classLabel(dataId);
+			String why = data.reason != null ? " (" + data.reason + ")" : "";
+			message("Received " + label + " System Survey Data" + why, Misc.getTextColor(), label);
+			CommoditySpecAPI spec = Global.getSettings().getCommoditySpec(dataId);
+			String sound = spec != null && spec.getSoundId() != null ? spec.getSoundId() : "ui_chip_pickup";
+			Global.getSoundPlayer().playUISound(sound, 1f, 1f);
 		}
 	}
 

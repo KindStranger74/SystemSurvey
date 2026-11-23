@@ -19,8 +19,10 @@ import com.fs.starfarer.api.campaign.SectorEntityToken;
 import com.fs.starfarer.api.campaign.StarSystemAPI;
 import com.fs.starfarer.api.campaign.econ.MarketAPI;
 import com.fs.starfarer.api.campaign.econ.MarketAPI.SurveyLevel;
+import com.fs.starfarer.api.campaign.econ.CommoditySpecAPI;
 import com.fs.starfarer.api.impl.campaign.ids.Factions;
 import com.fs.starfarer.api.impl.campaign.ids.Tags;
+import com.fs.starfarer.api.plugins.SurveyPlugin;
 import com.fs.starfarer.api.util.Misc;
 
 /** Scan bookkeeping and theme reading for one star system. Stateless; the state lives on the system. */
@@ -30,6 +32,9 @@ public class SurveyData {
 	public static final String SCANNED_KEY = "systemsurvey_scanned";
 	/** Set on the system's memory once fully surveyed; usable from rules.csv. */
 	public static final String COMPLETE_FLAG = "$systemsurvey_complete";
+	/** Id of the System Survey Data commodity granted for this system, in the system's persistent data. */
+	public static final String DATA_GRANTED_KEY = "systemsurvey_dataGranted";
+	public static final String DATA_ID_PREFIX = "systemsurvey_data_";
 
 	public static class Progress {
 		public float scanned;
@@ -262,6 +267,145 @@ public class SurveyData {
 		String s = tag.substring("theme_".length()).replace('_', ' ').trim();
 		if (s.isEmpty()) return "Unknown";
 		return Character.toUpperCase(s.charAt(0)) + s.substring(1);
+	}
+
+	// ---- survey data ----
+
+	/** Planets that count for the system's survey data class: not stars, not nebula centres, uncolonized. */
+	public static List<PlanetAPI> getSurveyPlanets(StarSystemAPI system) {
+		List<PlanetAPI> result = new ArrayList<PlanetAPI>();
+		for (PlanetAPI planet : system.getPlanets()) {
+			if (planet.isStar() || planet.getSpec().isNebulaCenter()) continue;
+			MarketAPI market = planet.getMarket();
+			if (market == null || !market.isPlanetConditionMarketOnly()) continue;
+			result.add(planet);
+		}
+		return result;
+	}
+
+	/** Class 1-5 of a vanilla survey data id; an unknown id (a modded survey plugin) counts as Class I. */
+	public static int vanillaClass(String vanillaId) {
+		if (vanillaId != null && vanillaId.startsWith("survey_data_")) {
+			try {
+				int n = Integer.parseInt(vanillaId.substring("survey_data_".length()));
+				if (n >= 1 && n <= 5) return n;
+			} catch (NumberFormatException ignored) {
+				// falls through to Class I
+			}
+		}
+		return 1;
+	}
+
+	/** A system's survey data class and what set it: a theme, an object or a planet. */
+	public static class DataClass {
+		public final int cls;
+		public final String reason;
+
+		public DataClass(int cls, String reason) {
+			this.cls = cls;
+			this.reason = reason;
+		}
+
+		public String id() {
+			return DATA_ID_PREFIX + cls;
+		}
+	}
+
+	/** Theme titles for the class reason; the same words as getThemes. Unknown tags fall back to the tag name. */
+	private static final Map<String, String> TAG_LABELS = new LinkedHashMap<String, String>();
+	static {
+		TAG_LABELS.put(Tags.THEME_REMNANT_MAIN, "Remnant stronghold");
+		TAG_LABELS.put(Tags.THEME_REMNANT_SECONDARY, "Remnant outpost");
+		TAG_LABELS.put(Tags.THEME_DERELICT_MOTHERSHIP, "Domain-era mothership");
+		TAG_LABELS.put(Tags.THEME_DERELICT_CRYOSLEEPER, "Cryosleeper");
+		TAG_LABELS.put(Tags.HAS_CORONAL_TAP, "Coronal hypershunt");
+		TAG_LABELS.put(Tags.THEME_DERELICT_SURVEY_SHIP, "Derelict survey ship");
+		TAG_LABELS.put(Tags.THEME_DERELICT_PROBES, "Survey probes");
+		TAG_LABELS.put(Tags.THEME_RUINS_MAIN, "Major ruins");
+		TAG_LABELS.put(Tags.THEME_RUINS_SECONDARY, "Minor ruins");
+		TAG_LABELS.put(Tags.THEME_SPECIAL, "Anomalous readings");
+	}
+
+	/** Class 1-5 per key from a settings.json object; missing or broken entries are left out. */
+	private static Map<String, Integer> getClassTable(String key) {
+		Map<String, Integer> result = new LinkedHashMap<String, Integer>();
+		try {
+			org.json.JSONObject json = Global.getSettings().getJSONObject(key);
+			java.util.Iterator<?> it = json.keys();
+			while (it.hasNext()) {
+				String k = (String) it.next();
+				int v = json.optInt(k, 0);
+				if (v >= 1 && v <= 5) result.put(k, v);
+			}
+		} catch (Exception e) {
+			// no table: nothing from this source
+		}
+		return result;
+	}
+
+	/**
+	 * The system's survey data class: the highest of its themes (system tags, settings
+	 * systemsurvey_dataClassByTag), its notable objects (custom entity types, systemsurvey_dataClassByEntity) and the
+	 * vanilla class of its eligible planets. Class I when nothing counts. Null for core world systems, which are
+	 * charted space and give nothing. On a tie the theme, then the object, names the reason.
+	 */
+	public static DataClass getSurveyDataInfo(StarSystemAPI system) {
+		if (system.hasTag(Tags.THEME_CORE)) return null;
+		int best = 1;
+		String reason = null;
+
+		boolean remnantGone = system.hasTag(Tags.THEME_REMNANT_DESTROYED);
+		for (Map.Entry<String, Integer> e : getClassTable("systemsurvey_dataClassByTag").entrySet()) {
+			String tag = e.getKey();
+			if (!system.hasTag(tag)) continue;
+			// a destroyed Remnant presence is worth no more than its planets
+			if (remnantGone && tag.startsWith(Tags.THEME_REMNANT)) continue;
+			if (e.getValue() > best || reason == null && e.getValue() == best) {
+				best = e.getValue();
+				String label = TAG_LABELS.get(tag);
+				reason = label != null ? label : (tag.startsWith("theme_") ? prettyTag(tag) : tag);
+			}
+		}
+
+		Map<String, Integer> byEntity = getClassTable("systemsurvey_dataClassByEntity");
+		if (!byEntity.isEmpty()) {
+			for (SectorEntityToken e : system.getAllEntities()) {
+				if (!e.isAlive() || !(e instanceof CustomCampaignEntityAPI)) continue;
+				Integer v = byEntity.get(e.getCustomEntityType());
+				if (v == null || v < best || (v == best && reason != null)) continue;
+				best = v;
+				String name = e.getCustomEntitySpec() != null ? e.getCustomEntitySpec().getDefaultName() : e.getName();
+				reason = name != null && !name.isEmpty() ? name : e.getCustomEntityType();
+			}
+		}
+
+		SurveyPlugin plugin = (SurveyPlugin) Global.getSettings().getNewPluginInstance("surveyPlugin");
+		for (PlanetAPI planet : getSurveyPlanets(system)) {
+			int v = vanillaClass(plugin.getSurveyDataType(planet));
+			if (v < best || (v == best && reason != null)) continue;
+			best = v;
+			reason = planet.getName();
+		}
+		return new DataClass(best, reason);
+	}
+
+	/** The System Survey Data commodity id for this system (see getSurveyDataInfo); null for core world systems. */
+	public static String getSurveyDataClass(StarSystemAPI system) {
+		DataClass d = getSurveyDataInfo(system);
+		return d == null ? null : d.id();
+	}
+
+	/** "Class III" for systemsurvey_data_3, taken from the commodity name; null for null. */
+	public static String classLabel(String dataId) {
+		if (dataId == null) return null;
+		CommoditySpecAPI spec = Global.getSettings().getCommoditySpec(dataId);
+		if (spec != null) {
+			String name = spec.getName();
+			int i = name.indexOf(" System Survey Data");
+			if (i > 0) return name.substring(0, i);
+			return name;
+		}
+		return dataId;
 	}
 
 	// ---- what is left to find ----

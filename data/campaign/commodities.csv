@@ -1,0 +1,6 @@
+name,id,demand class,base price,sell price mult,export value,price variability,utility,origin,tags,stack size,cargo space,icon,sound id,sound id drop,order,economyTier,econUnitOrigUnused,econUnit,baseRaidDanger,eU * base value,iconWidthMult,plugin,desc
+Class I System Survey Data,systemsurvey_data_1,survey_data,,,,0,1,,"nonecon, no_loss_from_combat",1000,1,graphics/icons/cargo/survey_data1.png,ui_chip_pickup,ui_modspec_drop,51,,,,,,1,,
+Class II System Survey Data,systemsurvey_data_2,survey_data,,,,0,3,,"nonecon, no_loss_from_combat",1000,1,graphics/icons/cargo/survey_data2.png,ui_chip_pickup,ui_modspec_drop,52,,,,,,1,,
+Class III System Survey Data,systemsurvey_data_3,survey_data,,,,0,5,,"nonecon, no_loss_from_combat",1000,1,graphics/icons/cargo/survey_data3.png,ui_chip_pickup,ui_modspec_drop,53,,,,,,1,,
+Class IV System Survey Data,systemsurvey_data_4,survey_data,,,,0,10,,"nonecon, no_loss_from_combat",1000,1,graphics/icons/cargo/survey_data4.png,ui_chip_pickup,ui_modspec_drop,54,,,,,,1,,
+Class V System Survey Data,systemsurvey_data_5,survey_data,,,,0,30,,"nonecon, no_loss_from_combat",1000,1,graphics/icons/cargo/survey_data5.png,ui_chip_pickup,ui_modspec_drop,55,,,,,,1,,

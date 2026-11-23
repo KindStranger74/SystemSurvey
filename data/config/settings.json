@@ -9,6 +9,36 @@
 	"systemsurvey_xpPerPoint":250,
 	# show the progress bar on the campaign screen
 	"systemsurvey_showHud":true,
+	# a full survey of a (non-core) system gives one unit of Class I-V System Survey Data; the class is the highest of
+	# the vanilla class of its best planet, its themes (tags below) and its notable objects (entity types below)
+	"systemsurvey_grantSurveyData":true,
+	# class 1-5 per system tag; Remnant tags do not count once the system has theme_remnant_destroyed.
+	# Other mods can add their own themes here.
+	"systemsurvey_dataClassByTag":{
+		"theme_remnant_main":5,
+		"theme_derelict_mothership":5,
+		"theme_derelict_cryosleeper":5,
+		"has_coronal_tap":5,
+		"theme_special":4,
+		"theme_remnant_secondary":3,
+		"theme_derelict_survey_ship":3,
+		"theme_ruins_main":3,
+		"theme_derelict_probes":2,
+		"theme_ruins_secondary":2,
+	},
+	# class 1-5 per custom entity type still in the system (also catches objects placed outside the themes)
+	"systemsurvey_dataClassByEntity":{
+		"derelict_mothership":5,
+		"derelict_cryosleeper":5,
+		"coronal_tap":5,
+		"derelict_gatehauler":5,
+		"derelict_survey_ship":3,
+		"inactive_gate":3,
+		"station_research_remnant":3,
+		"orbital_habitat_remnant":2,
+		"station_mining_remnant":2,
+		"derelict_probe":2,
+	},
 
 	"graphics":{
 		"intel":{
