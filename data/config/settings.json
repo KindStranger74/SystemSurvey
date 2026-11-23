@@ -1,0 +1,19 @@
+{
+	# System Survey
+	# scan radius of one Active Sensor Burst = fleet sensor range (with the burst bonus) times this
+	"systemsurvey_scanRangeMult":1.5,
+	# scan points a full survey needs (planet 2, star 1, jump point 1, salvage or station 3, stable location 1,
+	# other objects 2); a system with fewer points needs all of them
+	"systemsurvey_pointsRequired":10,
+	# experience for a full survey, per scan point in the whole system
+	"systemsurvey_xpPerPoint":250,
+	# show the progress bar on the campaign screen
+	"systemsurvey_showHud":true,
+
+	"graphics":{
+		"intel":{
+			# vanilla art, registered under the intel category so FleetLogIntel.setIconId can find it
+			"systemsurvey_survey":"graphics/icons/intel/analyze_entity.png",
+		},
+	},
+}
